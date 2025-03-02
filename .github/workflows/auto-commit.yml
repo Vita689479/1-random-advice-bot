@@ -1,12 +1,38 @@
-# Random Advice Bot
-HEAD
-Этот репозиторий содержит простой Python-бот, который получает случайные советы из интернета и выводит их в консоль.
-## Установка
-```sh
-pip install requests
-```
-## Использование
-```sh
-python main.py
-```
-1c3838ab46d709552e6abf16ab7c04c28c7ba25d
+name: Auto Commit
+
+on:
+  schedule:
+    - cron: '5 8 * * *'    # 08:05
+    - cron: '17 8 * * *'   # 08:17
+    - cron: '32 8 * * *'   # 08:32
+    - cron: '49 8 * * *'   # 08:49
+    - cron: "0 * * * *"    # Запуск каждый час
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  auto-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Make changes
+        run: |
+          echo "Last commit: $(date)" >> activity_log.txt
+          echo "Авто-коммит $(date)" >> auto_commit_log.txt
+
+      - name: Commit and Push
+        run: |
+          git add activity_log.txt auto_commit_log.txt
+          git commit -m "Auto commit at $(date)" || echo "No changes to commit"
+          git push
+
