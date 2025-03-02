@@ -1,0 +1,31 @@
+name: Auto Commit Bot 
+name: Auto Commit Bot
+
+on:
+  schedule:
+    - cron: '5 8 * * *'    # 08:05
+    - cron: '17 8 * * *'   # 08:17
+    - cron: '32 8 * * *'   # 08:32
+    - cron: '49 8 * * *'   # 08:49
+
+jobs:
+  auto-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "Vita689479"
+          git config --global user.email "vita.birda@gmail.com"
+
+      - name: Make changes
+        run: echo "Last commit: $(date)" >> activity_log.txt
+
+      - name: Commit and push
+        run: |
+          git add activity_log.txt
+          git commit -m "Automated commit at $(date)"
+          git push
