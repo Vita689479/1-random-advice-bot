@@ -2,11 +2,7 @@ name: Auto Commit
 
 on:
   schedule:
-    - cron: '5 8 * * *'    # 08:05
-    - cron: '17 8 * * *'   # 08:17
-    - cron: '32 8 * * *'   # 08:32
-    - cron: '49 8 * * *'   # 08:49
-    - cron: "0 * * * *"    # Запуск каждый час
+    - cron: "0 * * * *"  # Запуск каждый час
   push:
     branches:
       - main
@@ -26,13 +22,10 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Make changes
-        run: |
-          echo "Last commit: $(date)" >> activity_log.txt
-          echo "Авто-коммит $(date)" >> auto_commit_log.txt
+        run: echo "Авто-коммит $(date)" >> auto_commit_log.txt
 
       - name: Commit and Push
         run: |
-          git add activity_log.txt auto_commit_log.txt
+          git add auto_commit_log.txt
           git commit -m "Auto commit at $(date)" || echo "No changes to commit"
           git push
-
