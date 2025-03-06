@@ -1,50 +1,71 @@
-name: Auto Activity
+name: GitHub Activity Automation
 
 on:
   schedule:
-    - cron: '10-50 7 * * 1-5'  # Понедельник - Пятница, запуск в случайное время 07:10-08:50 UTC
-    - cron: '10-50 8 * * 6'    # Суббота, запуск в случайное время 08:10-09:50 UTC
+    - cron: '10,30,50 7 * * 1-5'  # Понедельник - пятница (07:10, 07:30, 07:50 UTC)
+    - cron: '10,30,50 8 * * 1-5'  # Понедельник - пятница (08:10, 08:30, 08:50 UTC)
+    - cron: '10,30,50 8 * * 6'    # Суббота (08:10, 08:30, 08:50 UTC)
+    - cron: '10,30,50 9 * * 6'    # Суббота (09:10, 09:30, 09:50 UTC)
 
-  workflow_dispatch:
+  workflow_dispatch:  # Ручной запуск при необходимости
 
 jobs:
   activity:
     runs-on: ubuntu-latest
-    steps:
-      - name: Set random delay
-        run: sleep $(( ( RANDOM % 6000 ) + 1 ))  # Задержка от 1 до 6000 секунд (100 минут)
 
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Configure Git
+      - name: Set up Git user
         run: |
           git config --global user.name "Vita"
           git config --global user.email "197509342+Vita689479@users.noreply.github.com"
 
-      - name: Generate random activity
+      - name: Generate random commit
         run: |
-          ACTION=$(( RANDOM % 3 ))
-          
-          if [[ $ACTION -eq 0 ]]; then
-            echo "Committing a random change"
-            echo "Random update $(date)" >> activity_log.txt
-            git add activity_log.txt
-            git commit -m "Random update at $(date)"
-            git push
-          
-          elif [[ $ACTION -eq 1 ]]; then
-            echo "Creating a new GitHub Issue"
-            gh issue create --title "Automated Issue $(date)" --body "This is a randomly generated issue."
-          
-          else
-            echo "Adding a comment to an issue"
-            ISSUE_NUMBER=$(gh issue list --state open --json number --jq '.[0].number')
-            if [[ -n "$ISSUE_NUMBER" ]]; then
-              gh issue comment $ISSUE_NUMBER --body "Automated comment at $(date)"
-            else
-              echo "No open issues found"
+          echo "$(date) - Automated commit" >> activity_log.txt
+          git add activity_log.txt
+          git commit -m "Auto commit at $(date)"
+          git push origin main || echo "No changes to commit"
+
+      - name: Create an issue randomly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ $((RANDOM % 3)) -eq 0 ]; then
+            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                 -H "Accept: application/vnd.github.v3+json" \
+                 https://api.github.com/repos/${{ github.repository }}/issues \
+                 -d '{"title":"Automated Issue","body":"This is a test issue created by the workflow."}'
+          fi
+
+      - name: Create a pull request randomly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ $((RANDOM % 4)) -eq 0 ]; then
+            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                 -H "Accept: application/vnd.github.v3+json" \
+                 https://api.github.com/repos/${{ github.repository }}/pulls \
+                 -d '{"title":"Automated PR","body":"This is a test PR created by the workflow.","head":"main","base":"main"}'
+          fi
+
+      - name: Comment on an issue randomly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ $((RANDOM % 5)) -eq 0 ]; then
+            ISSUE_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+                               -H "Accept: application/vnd.github.v3+json" \
+                               https://api.github.com/repos/${{ github.repository }}/issues?state=open \
+                               | jq -r '.[0].number')
+            if [ "$ISSUE_NUMBER" != "null" ]; then
+              curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                   -H "Accept: application/vnd.github.v3+json" \
+                   https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments \
+                   -d '{"body":"Automated comment on issue #'$ISSUE_NUMBER'"}'
             fi
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
