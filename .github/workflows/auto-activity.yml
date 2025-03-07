@@ -19,10 +19,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Git user
+      -      - name: Set Git identity
         run: |
           git config --global user.name "Vita"
           git config --global user.email "197509342+Vita689479@users.noreply.github.com"
+
 
       - name: Generate random commit
         run: |
