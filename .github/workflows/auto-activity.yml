@@ -1,71 +1,129 @@
-name: GitHub Activity Automation
+name: Smart Activity Automator
 
 on:
   schedule:
-    - cron: '10,30,50 7 * * 1-5'  # Понедельник - пятница (07:10, 07:30, 07:50 UTC)
-    - cron: '10,30,50 8 * * 1-5'  # Понедельник - пятница (08:10, 08:30, 08:50 UTC)
-    - cron: '10,30,50 8 * * 6'    # Суббота (08:10, 08:30, 08:50 UTC)
-    - cron: '10,30,50 9 * * 6'    # Суббота (09:10, 09:30, 09:50 UTC)
-
-  workflow_dispatch:  # Ручной запуск при необходимости
+    - cron: '10 7 * * 1-5'  # Точка входа для будних дней
+    - cron: '10 8 * * 6'     # Точка входа для субботы
 
 jobs:
-  activity:
+  generate-activity:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Set Git identity
+      - name: Setup environment
         run: |
+          sudo apt-get install -y jq  # Для обработки JSON
           git config --global user.name "Vita"
           git config --global user.email "197509342+Vita689479@users.noreply.github.com"
 
-      - name: Generate random commit
+      - name: Calculate activity parameters
+        id: params
         run: |
-          echo "$(date) - Automated commit" >> activity_log.txt
-          git add activity_log.txt
-          git commit -m "Auto commit at $(date)"
-          git push origin main || echo "No changes to commit"
+          # Определяем день недели (1-5 = будни, 6 = суббота)
+          DAY=$(date +%u)
+          
+          # Генерируем случайное количество запусков
+          if [ $DAY -le 5 ]; then
+            RUNS=$(( (RANDOM % 4) + 2 ))  # 2-5 запусков
+            START_HOUR=7
+            END_HOUR=8
+          else
+            RUNS=$(( (RANDOM % 3) + 1 ))  # 1-3 запуска
+            START_HOUR=8
+            END_HOUR=9
+          fi
 
-      - name: Create an issue randomly
+          # Сохраняем параметры для последующих шагов
+          echo "runs=$RUNS" >> $GITHUB_OUTPUT
+          echo "start_hour=$START_HOUR" >> $GITHUB_OUTPUT
+          echo "end_hour=$END_HOUR" >> $GITHUB_OUTPUT
+
+      - name: Execute random activities
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ $((RANDOM % 3)) -eq 0 ]; then
-            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-                 -H "Accept: application/vnd.github.v3+json" \
-                 https://api.github.com/repos/${{ github.repository }}/issues \
-                 -d '{"title":"Automated Issue","body":"This is a test issue created by the workflow."}'
-          fi
+          for ((i=1; i<=${{ steps.params.outputs.runs }}; i++)); do
+            # Генерируем случайную задержку (10-50 минут)
+            DELAY=$(( (RANDOM % 41) * 60 + 600 ))
+            echo "Запуск $i через $((DELAY / 60)) минут"
+            sleep $DELAY
 
-      - name: Create a pull request randomly
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ $((RANDOM % 4)) -eq 0 ]; then
-            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-                 -H "Accept: application/vnd.github.v3+json" \
-                 https://api.github.com/repos/${{ github.repository }}/pulls \
-                 -d '{"title":"Automated PR","body":"This is a test PR created by the workflow.","head":"main","base":"main"}'
-          fi
+            # Случайный тип активности (1-5)
+            ACTIVITY_TYPE=$(( RANDOM % 5 + 1 ))
+            
+            # Массив случайных сообщений
+            COMMIT_MESSAGES=(
+              "Оптимизация кода"
+              "Обновление документации"
+              "Исправление опечаток"
+              "Рефакторинг модуля"
+              "Добавление тестов"
+            )
+            
+            ISSUE_TITLES=(
+              "Запрос на улучшение"
+              "Обнаружен баг"
+              "Предложение фичи"
+              "Вопрос по реализации"
+              "Обновление зависимостей"
+            )
 
-      - name: Comment on an issue randomly
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ $((RANDOM % 5)) -eq 0 ]; then
-            ISSUE_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                               -H "Accept: application/vnd.github.v3+json" \
-                               https://api.github.com/repos/${{ github.repository }}/issues?state=open \
-                               | jq -r '.[0].number')
-            if [ "$ISSUE_NUMBER" != "null" ]; then
-              curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-                   -H "Accept: application/vnd.github.v3+json" \
-                   https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments \
-                   -d '{"body":"Automated comment on issue #'$ISSUE_NUMBER'"}'
-            fi
-          fi
+            case $ACTIVITY_TYPE in
+              1|2)
+                # Коммит с случайным сообщением
+                MSG=${COMMIT_MESSAGES[$RANDOM % ${#COMMIT_MESSAGES[@]}]}
+                echo "$(date) - $MSG" >> activity.log
+                git add activity.log
+                git commit -m "$MSG (#$i)"
+                git push origin main
+                ;;
+
+              3)
+                # Создание issue
+                TITLE=${ISSUE_TITLES[$RANDOM % ${#ISSUE_TITLES[@]}]}
+                curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  https://api.github.com/repos/${{ github.repository }}/issues \
+                  -d '{"title":"'"$TITLE"'","body":"Автоматически созданная задача"}'
+                ;;
+
+              4)
+                # Создание PR
+                BRANCH_NAME="auto-changes-$(date +%s)"
+                git checkout -b $BRANCH_NAME
+                echo "Changes #$i" >> file$i.txt
+                git add .
+                git commit -m "Автоматические изменения #$i"
+                git push origin $BRANCH_NAME
+                
+                curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  https://api.github.com/repos/${{ github.repository }}/pulls \
+                  -d '{"title":"Автоматический PR #'"$i"'","head":"'"$BRANCH_NAME"'","base":"main"}'
+                ;;
+
+              5)
+                # Комментарий к issue
+                ISSUE_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+                  "https://api.github.com/repos/${{ github.repository }}/issues?state=open" \
+                  | jq -r '.[0].number')
+                
+                if [ "$ISSUE_NUMBER" != "null" ]; then
+                  curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments" \
+                    -d '{"body":"Автоматический комментарий (#'"$i"')"}'
+                fi
+                ;;
+            esac
+          done
