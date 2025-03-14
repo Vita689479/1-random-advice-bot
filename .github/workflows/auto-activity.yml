@@ -50,9 +50,9 @@ jobs:
           echo "end_hour=$END_HOUR" >> $GITHUB_OUTPUT
 
       - name: Execute random activities
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+  run: |
           for ((i=1; i<=${{ steps.params.outputs.runs }}; i++)); do
             # Генерируем случайное время запуска в указанном диапазоне
             HOUR=$(( (RANDOM % (${{ steps.params.outputs.end_hour }} - ${{ steps.params.outputs.start_hour }})) + ${{ steps.params.outputs.start_hour }} ))
