@@ -2,8 +2,8 @@ name: Smart Activity Automator
 
 on:
   schedule:
-    - cron: '10 7 * * 1-5'  # Точка входа для будних дней
-    - cron: '10 8 * * 6'     # Точка входа для субботы
+    - cron: '10 7 * * 1-5'  # Понедельник–пятница в 07:10 UTC
+    - cron: '10 8 * * 6'     # Суббота в 08:10 UTC
   workflow_dispatch:  # Для ручного запуска
 
 jobs:
@@ -50,9 +50,9 @@ jobs:
           echo "end_hour=$END_HOUR" >> $GITHUB_OUTPUT
 
       - name: Execute random activities
-  env:
-    GITHUB_TOKEN: ${{ github.token }}
-  run: |
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
           for ((i=1; i<=${{ steps.params.outputs.runs }}; i++)); do
             # Генерируем случайное время запуска в указанном диапазоне
             HOUR=$(( (RANDOM % (${{ steps.params.outputs.end_hour }} - ${{ steps.params.outputs.start_hour }})) + ${{ steps.params.outputs.start_hour }} ))
@@ -100,7 +100,12 @@ jobs:
                 echo "$(date) - $MSG" >> activity.log
                 git add activity.log
                 git commit -m "$MSG (#$i)"
-                echo "Commit created and pushed."
+                echo "Commit created."
+                
+                # Добавьте git pull перед git push
+                git pull origin main --rebase
+                
+                echo "Pushing changes..."
                 git push origin main || echo "No changes to commit"
                 ;;
               
