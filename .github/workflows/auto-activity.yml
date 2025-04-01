@@ -47,7 +47,7 @@ jobs:
           # Сохраняем параметры для последующих шагов
           echo "runs=$RUNS" >> $GITHUB_OUTPUT
           echo "start_hour=$START_HOUR" >> $GITHUB_OUTPUT
-          echo "end_hour=$END_HOUR" >> $GITHUB_OUTPUT
+          echo "end_hour=$END_HOUR" >> $GITHUB_OUTPUT    
 
       - name: Execute random activities
         env:
